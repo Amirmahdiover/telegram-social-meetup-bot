@@ -1,0 +1,49 @@
+from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+START_REGISTRATION = "شروع ثبت‌نام 🚀"
+YES = "✅ بله"
+NO = "❌ خیر"
+FINAL_SUBMIT = "✅ ثبت نهایی"
+RESTART = "🔄 شروع دوباره"
+ACTIVITIES_DONE = "ثبت انتخاب‌ها ✅"
+AVAILABILITY_DONE = "ثبت زمان‌ها ✅"
+
+GENDERS = ["👨 مرد", "👩 زن"]
+AREAS = ["غرب", "شرق", "مرکز", "شمال", "جنوب", "فرقی نمی‌کنه"]
+ACTIVITIES = [
+    "☕ کافه و گفتگو", "🎲 کافه + بردگیم",
+]
+AGE_PREFERENCES = ["حدود ±۲ سال", "حدود ±۴ سال", "حدود ±۶ سال", "سن خیلی مهم نیست"]
+AVAILABILITY = [
+    "پنجشنبه ۱۷ تا ۲۰", "پنجشنبه ۲۰ تا ۲۳", "جمعه ۱۵ تا ۱۸",
+    "جمعه ۱۸ تا ۲۱", "جمعه ۲۰ تا ۲۳",
+]
+JOIN_REASONS = [
+    "👥 آشنا شدن با آدم‌های جدید", "🤝 پیدا کردن دوست جدید",
+    "🎉 تفریح و تجربه جدید", "🎯 پیدا کردن همراه برای فعالیت‌های مشترک",
+    "ترکیبی از این‌ها",
+]
+
+
+def reply_keyboard(options: list[str], columns: int = 2, *, resize: bool = True) -> ReplyKeyboardMarkup:
+    rows = [options[index:index + columns] for index in range(0, len(options), columns)]
+    return ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=item) for item in row] for row in rows], resize_keyboard=resize)
+
+
+def contact_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="📱 اشتراک‌گذاری شماره خودم", request_contact=True)]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+
+def multi_select_keyboard(items: list[str], selected: list[str], done_label: str):
+    builder = InlineKeyboardBuilder()
+    for index, item in enumerate(items):
+        prefix = "✅ " if item in selected else "▫️ "
+        builder.button(text=prefix + item, callback_data=f"multi:{index}")
+    builder.adjust(1)
+    builder.button(text=done_label, callback_data="multi:done")
+    return builder.as_markup()
