@@ -13,3 +13,14 @@ class Registration(StatesGroup):
     availability = State()
     join_reason = State()
     review = State()
+
+
+class EventCreation(StatesGroup):
+    title = State()
+    date = State()
+    time = State()
+    location_name = State()
+    location_address = State()
+    latitude = State()
+    longitude = State()
+    message = State()

@@ -47,3 +47,19 @@ def multi_select_keyboard(items: list[str], selected: list[str], done_label: str
     builder.adjust(1)
     builder.button(text=done_label, callback_data="multi:done")
     return builder.as_markup()
+
+
+def event_invitation_keyboard(event_id: int):
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✅ میام", callback_data=f"event_response:{event_id}:confirmed")
+    builder.button(text="❌ نمی‌تونم بیام", callback_data=f"event_response:{event_id}:declined")
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def event_send_confirmation_keyboard(event_id: int):
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✅ Confirm Send", callback_data=f"event_send:{event_id}:confirm")
+    builder.button(text="❌ Cancel", callback_data=f"event_send:{event_id}:cancel")
+    builder.adjust(1)
+    return builder.as_markup()

@@ -40,6 +40,36 @@ async def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_funnel_events_user_event_created
             ON funnel_events (telegram_user_id, event_name, created_at)
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                date TEXT NOT NULL,
+                time TEXT NOT NULL,
+                location_name TEXT NOT NULL,
+                location_address TEXT NOT NULL,
+                latitude REAL,
+                longitude REAL,
+                message TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS event_members (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT 'invited'
+                    CHECK (status IN ('invited', 'confirmed', 'declined')),
+                UNIQUE (event_id, user_id),
+                FOREIGN KEY (event_id) REFERENCES events(id),
+                FOREIGN KEY (user_id) REFERENCES registrations(telegram_user_id)
+            )
+        """)
+        await db.execute("""
+            CREATE INDEX IF NOT EXISTS idx_event_members_event_status
+            ON event_members (event_id, status)
+        """)
         await db.commit()
 
 
@@ -123,3 +153,75 @@ async def get_all_registrations() -> list[dict[str, Any]]:
         cursor = await db.execute("SELECT * FROM registrations ORDER BY created_at DESC")
         rows = await cursor.fetchall()
     return [dict(row) for row in rows]
+
+
+async def create_event(data: dict[str, Any]) -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("""
+            INSERT INTO events (
+                title, date, time, location_name, location_address,
+                latitude, longitude, message
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            data["title"], data["date"], data["time"], data["location_name"],
+            data["location_address"], data.get("latitude"), data.get("longitude"),
+            data["message"],
+        ))
+        await db.commit()
+        return cursor.lastrowid
+
+
+async def get_event(event_id: int) -> dict[str, Any] | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("SELECT * FROM events WHERE id = ?", (event_id,))
+        row = await cursor.fetchone()
+    return dict(row) if row else None
+
+
+async def add_event_member(event_id: int, user_id: int) -> bool:
+    """Add a registered user as invited. Returns False when either ID is unknown."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("""
+            INSERT INTO event_members (event_id, user_id, status)
+            SELECT ?, ?, 'invited'
+            WHERE EXISTS (SELECT 1 FROM events WHERE id = ?)
+              AND EXISTS (SELECT 1 FROM registrations WHERE telegram_user_id = ?)
+            ON CONFLICT(event_id, user_id) DO UPDATE SET status = 'invited'
+        """, (event_id, user_id, event_id, user_id))
+        await db.commit()
+        return cursor.rowcount > 0
+
+
+async def get_invited_members(event_id: int) -> list[int]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("""
+            SELECT user_id FROM event_members
+            WHERE event_id = ? AND status = 'invited'
+        """, (event_id,))
+        rows = await cursor.fetchall()
+    return [row[0] for row in rows]
+
+
+async def get_event_members(event_id: int) -> list[dict[str, Any]]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("""
+            SELECT registrations.first_name, event_members.user_id, event_members.status
+            FROM event_members
+            JOIN registrations ON registrations.telegram_user_id = event_members.user_id
+            WHERE event_members.event_id = ?
+            ORDER BY event_members.id
+        """, (event_id,))
+        rows = await cursor.fetchall()
+    return [dict(row) for row in rows]
+
+
+async def update_event_member_status(event_id: int, user_id: int, status: str) -> bool:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("""
+            UPDATE event_members SET status = ?
+            WHERE event_id = ? AND user_id = ?
+        """, (status, event_id, user_id))
+        await db.commit()
+        return cursor.rowcount > 0
