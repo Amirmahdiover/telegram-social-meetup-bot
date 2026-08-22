@@ -160,6 +160,13 @@ async def get_funnel_counts() -> dict[str, int]:
     return {event_name: user_count for event_name, user_count in rows}
 
 
+async def reset_funnel_events() -> None:
+    """Remove analytics rows without affecting registrations or event data."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM funnel_events")
+        await db.commit()
+
+
 async def save_registration(user_id: int, username: str | None, data: dict[str, Any]) -> None:
     values = {
         "telegram_user_id": user_id,

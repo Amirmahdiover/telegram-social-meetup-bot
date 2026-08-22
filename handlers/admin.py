@@ -9,8 +9,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import BufferedInputFile, CallbackQuery, Message
 
 from config import Settings
-from database import add_event_member, create_event, get_all_registrations, get_event, get_event_members, get_funnel_counts, get_invited_members, update_event_member_status
-from keyboards import SOCIAL_VALUE_LABELS, event_invitation_keyboard, event_send_confirmation_keyboard
+from database import add_event_member, create_event, get_all_registrations, get_event, get_event_members, get_funnel_counts, get_invited_members, reset_funnel_events, update_event_member_status
+from keyboards import SOCIAL_VALUE_LABELS, event_invitation_keyboard, event_send_confirmation_keyboard, funnel_reset_confirmation_keyboard
 from states import EventCreation
 
 
@@ -104,6 +104,33 @@ def create_admin_router(settings: Settings) -> Router:
             if user.get(field):
                 lines.append(f"{label}: {SOCIAL_VALUE_LABELS.get(user[field], user[field])}")
         await message.answer("\n".join(lines))
+
+    @router.message(Command("reset_funnel"))
+    async def reset_funnel(message: Message) -> None:
+        if not await require_admin(message):
+            return
+        await message.answer(
+            "آمار Funnel ریست شود؟ این کار فقط رویدادهای تحلیلی Funnel را پاک می‌کند.",
+            reply_markup=funnel_reset_confirmation_keyboard(),
+        )
+
+    @router.callback_query(F.data.startswith("funnel_reset:"))
+    async def funnel_reset_confirmation(callback: CallbackQuery) -> None:
+        if callback.from_user.id not in settings.admin_ids:
+            await callback.answer("Admin access required.", show_alert=True)
+            return
+        action = (callback.data or "").split(":", 1)[-1]
+        await callback.message.edit_reply_markup(reply_markup=None)
+        if action == "cancel":
+            await callback.answer("ریست Funnel لغو شد.")
+            await callback.message.answer("ریست Funnel لغو شد.")
+            return
+        if action != "confirm":
+            await callback.answer("Invalid action.", show_alert=True)
+            return
+        await reset_funnel_events()
+        await callback.answer("آمار Funnel ریست شد.")
+        await callback.message.answer("آمار Funnel ریست شد ✅\nاز این لحظه ثبت‌نام‌های جدید از صفر محاسبه می‌شن.")
 
     @router.message(Command("create_event"))
     async def create_event_command(message: Message, state: FSMContext) -> None:

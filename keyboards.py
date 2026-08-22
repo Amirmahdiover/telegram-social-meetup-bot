@@ -79,3 +79,11 @@ def event_send_confirmation_keyboard(event_id: int):
     builder.button(text="❌ Cancel", callback_data=f"event_send:{event_id}:cancel")
     builder.adjust(1)
     return builder.as_markup()
+
+
+def funnel_reset_confirmation_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✅ Confirm reset", callback_data="funnel_reset:confirm")
+    builder.button(text="❌ Cancel", callback_data="funnel_reset:cancel")
+    builder.adjust(1)
+    return builder.as_markup()

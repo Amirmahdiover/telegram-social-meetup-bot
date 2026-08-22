@@ -75,6 +75,8 @@ The current event is on Thursday, 18:00–20:00, at Cafe Diamond near Fallahpour
 
 Funnel reporting counts distinct Telegram users at each stage. Individual event rows are retained for historical analysis, with accidental repeats of the same event for a user ignored for five minutes.
 
+Admins can use `/reset_funnel` to clear only funnel analytics after a confirmation prompt. Registrations and event data are unaffected.
+
 ## V0 workflow
 
 The bot only collects and organizes data. An admin manually reviews registrations, chooses roughly 6–8 compatible people, contacts them, and manages statuses outside the bot for now. The bot does not create participant group chats, reveal participants' profiles/photos/phone numbers, perform automated matching, process payments, or use AI.

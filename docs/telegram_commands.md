@@ -77,6 +77,14 @@ All commands in this section require the caller's numeric Telegram ID to be pres
 - **Required arguments:** `user_number`
 - **Expected output:** Name, age, join reason, registration status, and any recorded social-style answers. Older registrations may not have social-style answers.
 
+### `/reset_funnel`
+
+- **Example:** `/reset_funnel`
+- **Access level:** Admin only
+- **Description:** Opens a confirmation prompt to reset funnel analytics for the current registration flow.
+- **Required arguments:** None.
+- **Expected output:** **Confirm reset** deletes only `funnel_events` and confirms the reset in Persian. **Cancel** leaves all data unchanged and confirms cancellation.
+
 ### `/create_event`
 
 - **Example:** `/create_event`
