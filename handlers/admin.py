@@ -33,7 +33,7 @@ def create_admin_router(settings: Settings) -> Router:
         writer = csv.DictWriter(output, fieldnames=columns)
         writer.writeheader()
         for row in rows:
-            writer.writerow({"telegram_user_id": row["telegram_user_id"], "username": row["telegram_username"], "name": row["first_name"], "age": row["age"], "gender": row["gender"], "area": row["area"], "phone": row["phone"], "activities": " | ".join(json.loads(row["activities"])), "age_preference": row["age_preference"], "availability": " | ".join(json.loads(row["availability"])), "join_reason": row["join_reason"], "status": row["status"], "created_at": row["created_at"]})
+            writer.writerow({"telegram_user_id": row["telegram_user_id"], "username": row["telegram_username"], "name": row["first_name"], "age": row["age"], "gender": row["gender"], "area": row["area"], "phone": row["phone"], "activities": " | ".join(json.loads(row["activities"] or "[]")), "age_preference": row["age_preference"], "availability": " | ".join(json.loads(row["availability"] or "[]")), "join_reason": row["join_reason"], "status": row["status"], "created_at": row["created_at"]})
         content = ("\ufeff" + output.getvalue()).encode("utf-8")
         await message.answer_document(BufferedInputFile(content, filename="registrations.csv"), caption=f"{len(rows)} ثبت‌نام")
 
@@ -60,13 +60,11 @@ def create_admin_router(settings: Settings) -> Router:
             return
         counts = await get_funnel_counts()
         count = lambda name: counts.get(name, 0)
-        requested, shared, started, completed = count("phone_requested"), count("phone_shared"), count("registration_started"), count("registration_completed")
-        dropoff = requested - shared
+        started, completed = count("registration_started"), count("registration_completed")
         report = (
             "📊 قیف ثبت‌نام\n\n"
-            f"شروع ثبت‌نام: {started}\nتأیید ۱۸+: {count('age_confirmed')}\nثبت نام: {count('name_entered')}\nثبت سن: {count('age_entered')}\nانتخاب جنسیت: {count('gender_selected')}\nانتخاب محدوده: {count('area_selected')}\n\n"
-            f"📱 درخواست شماره: {requested}\n📱 اشتراک شماره: {shared}\n\nانتخاب فعالیت: {count('activities_selected')}\nانتخاب بازه سنی: {count('age_preference_selected')}\nانتخاب زمان: {count('availability_selected')}\nانتخاب هدف: {count('reason_selected')}\nثبت‌نام کامل: {completed}\n\n"
-            f"📉 ریزش در مرحله شماره:\n{dropoff} نفر\n{(dropoff / requested * 100 if requested else 0):.1f}%\n\n✅ نرخ اشتراک شماره:\n{(shared / requested * 100 if requested else 0):.1f}%\n\n✅ نرخ تکمیل کل ثبت‌نام:\n{(completed / started * 100 if started else 0):.1f}%"
+            f"شروع ثبت‌نام: {started}\nتأیید ۱۸+: {count('age_confirmed')}\nثبت نام: {count('name_entered')}\nثبت سن: {count('age_entered')}\nانتخاب جنسیت: {count('gender_selected')}\nانتخاب هدف: {count('join_reason_selected')}\nثبت‌نام کامل: {completed}\n\n"
+            f"✅ نرخ تکمیل کل ثبت‌نام:\n{(completed / started * 100 if started else 0):.1f}%"
         )
         await message.answer(report)
 

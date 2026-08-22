@@ -31,7 +31,7 @@
 - **Access level:** User
 - **Description:** Shows the caller's saved registration profile.
 - **Required arguments:** None.
-- **Expected output:** Name, age, gender, area, activities, age preference, availability, join reason, and registration status. Phone number is intentionally omitted. Unregistered users are directed to `/start`.
+- **Expected output:** Name, age, gender, join reason, and registration status. Older saved registrations also show any previously collected non-empty fields. Unregistered users are directed to `/start`.
 
 ### `/whoami`
 
@@ -67,7 +67,7 @@ All commands in this section require the caller's numeric Telegram ID to be pres
 - **Access level:** Admin only
 - **Description:** Shows registration funnel analytics.
 - **Required arguments:** None.
-- **Expected output:** Counts and rates for registration progress, phone sharing, drop-off, and registration completion.
+- **Expected output:** Unique-user counts for the streamlined registration stages and the overall completion rate. Historical funnel events remain stored but are not part of this report.
 
 ### `/create_event`
 
@@ -128,13 +128,6 @@ All commands in this section require the caller's numeric Telegram ID to be pres
 ## Inline callback actions
 
 These are inline buttons, not slash commands.
-
-### Registration multi-select buttons
-
-- **Access level:** User during registration
-- **Description:** Activity and availability option buttons toggle a selection. Their corresponding completion button advances the registration flow once at least one option is selected.
-- **Required arguments:** None.
-- **Expected output:** Updates the selection markers on the inline keyboard, then advances to the next registration question after completion.
 
 ### `✅ میام`
 

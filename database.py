@@ -17,17 +17,18 @@ async def init_db() -> None:
                 first_name TEXT NOT NULL,
                 age INTEGER NOT NULL,
                 gender TEXT NOT NULL,
-                area TEXT NOT NULL,
-                phone TEXT NOT NULL,
-                activities TEXT NOT NULL,
-                age_preference TEXT NOT NULL,
-                availability TEXT NOT NULL,
+                area TEXT,
+                phone TEXT,
+                activities TEXT,
+                age_preference TEXT,
+                availability TEXT,
                 join_reason TEXT NOT NULL,
                 status TEXT NOT NULL DEFAULT 'new',
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        await _make_legacy_registration_fields_nullable(db)
         await db.execute("""
             CREATE TABLE IF NOT EXISTS funnel_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -73,6 +74,44 @@ async def init_db() -> None:
         await db.commit()
 
 
+async def _make_legacy_registration_fields_nullable(db: aiosqlite.Connection) -> None:
+    """Relax V0-only fields without losing existing registrations or funnel data."""
+    cursor = await db.execute("PRAGMA table_info(registrations)")
+    columns = {row[1]: row[3] for row in await cursor.fetchall()}
+    legacy_fields = {"area", "phone", "activities", "age_preference", "availability"}
+    if not any(columns.get(field) for field in legacy_fields):
+        return
+
+    await db.execute("PRAGMA foreign_keys = OFF")
+    await db.execute("""
+        CREATE TABLE registrations_new (
+            telegram_user_id INTEGER PRIMARY KEY,
+            telegram_username TEXT,
+            first_name TEXT NOT NULL,
+            age INTEGER NOT NULL,
+            gender TEXT NOT NULL,
+            area TEXT,
+            phone TEXT,
+            activities TEXT,
+            age_preference TEXT,
+            availability TEXT,
+            join_reason TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'new',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    await db.execute("""
+        INSERT INTO registrations_new
+        SELECT telegram_user_id, telegram_username, first_name, age, gender, area, phone,
+               activities, age_preference, availability, join_reason, status, created_at, updated_at
+        FROM registrations
+    """)
+    await db.execute("DROP TABLE registrations")
+    await db.execute("ALTER TABLE registrations_new RENAME TO registrations")
+    await db.execute("PRAGMA foreign_keys = ON")
+
+
 async def track_funnel_event(telegram_user_id: int, event_name: str) -> None:
     """Record a funnel transition, ignoring accidental repeats within five minutes."""
     created_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
@@ -108,11 +147,11 @@ async def save_registration(user_id: int, username: str | None, data: dict[str, 
         "first_name": data["first_name"],
         "age": data["age"],
         "gender": data["gender"],
-        "area": data["area"],
-        "phone": data["phone"],
-        "activities": json.dumps(data["activities"], ensure_ascii=False),
-        "age_preference": data["age_preference"],
-        "availability": json.dumps(data["availability"], ensure_ascii=False),
+        "area": None,
+        "phone": None,
+        "activities": None,
+        "age_preference": None,
+        "availability": None,
         "join_reason": data["join_reason"],
     }
     async with aiosqlite.connect(DB_PATH) as db:
@@ -142,8 +181,8 @@ async def get_registration(user_id: int) -> dict[str, Any] | None:
     if row is None:
         return None
     result = dict(row)
-    result["activities"] = json.loads(result["activities"])
-    result["availability"] = json.loads(result["availability"])
+    result["activities"] = json.loads(result["activities"] or "[]")
+    result["availability"] = json.loads(result["availability"] or "[]")
     return result
 
 

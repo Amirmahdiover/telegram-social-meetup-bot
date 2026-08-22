@@ -1,14 +1,11 @@
 from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message, ReplyKeyboardRemove
+from aiogram.exceptions import TelegramAPIError
+from aiogram.types import Message, ReplyKeyboardRemove
 
 from database import get_registration, save_registration, track_funnel_event
-from keyboards import (
-    ACTIVITIES, ACTIVITIES_DONE, AGE_PREFERENCES, AREAS, AVAILABILITY, AVAILABILITY_DONE,
-    FINAL_SUBMIT, GENDERS, JOIN_REASONS, NO, RESTART, START_REGISTRATION, YES,
-    contact_keyboard, multi_select_keyboard, reply_keyboard,
-)
+from keyboards import FINAL_SUBMIT, GENDERS, JOIN_REASONS, NO, RESTART, START_REGISTRATION, YES, reply_keyboard
 from states import Registration
 
 router = Router()
@@ -114,8 +111,8 @@ async def age(message: Message, state: FSMContext) -> None:
 async def gender(message: Message, state: FSMContext) -> None:
     await state.update_data(gender=message.text)
     await track_funnel_event(message.from_user.id, "gender_selected")
-    await state.set_state(Registration.area)
-    await message.answer("معمولاً کدوم محدوده تهران برات راحت‌تره؟", reply_markup=reply_keyboard(AREAS, 3))
+    await state.set_state(Registration.join_reason)
+    await message.answer("بیشتر برای چی دوست داری تو این دورهمی شرکت کنی؟", reply_markup=reply_keyboard(JOIN_REASONS, 1))
 
 
 @router.message(Registration.gender)
@@ -123,102 +120,10 @@ async def gender_invalid(message: Message) -> None:
     await message.answer("لطفاً یکی از گزینه‌های جنسیت را انتخاب کن.")
 
 
-@router.message(Registration.area, F.text.in_(AREAS))
-async def area(message: Message, state: FSMContext) -> None:
-    await state.update_data(area=message.text)
-    await track_funnel_event(message.from_user.id, "area_selected")
-    await state.set_state(Registration.phone)
-    await message.answer(
-        "📱 برای هماهنگی و تأیید حضور قبل از دورهمی، شماره تلفنت رو با ما به اشتراک بذار. "
-        "شماره‌ات به سایر شرکت‌کننده‌ها نمایش داده نمی‌شه و فقط برای هماهنگی دورهمی و تأیید حضور استفاده می‌شه.",
-        reply_markup=contact_keyboard(),
-    )
-    await track_funnel_event(message.from_user.id, "phone_requested")
-
-
-@router.message(Registration.area)
-async def area_invalid(message: Message) -> None:
-    await message.answer("لطفاً یکی از محدوده‌ها را انتخاب کن.")
-
-
-@router.message(Registration.phone, F.contact)
-async def phone(message: Message, state: FSMContext) -> None:
-    contact = message.contact
-    if contact.user_id != message.from_user.id:
-        await message.answer("لطفاً فقط شماره‌ی خودت را با دکمه‌ی پایین ارسال کن.")
-        return
-    await state.update_data(phone=contact.phone_number)
-    await track_funnel_event(message.from_user.id, "phone_shared")
-    await state.update_data(activities=[])
-    await state.set_state(Registration.activities)
-    await message.answer(
-        "کدوم نوع دورهمی‌ها برات جذاب‌تره؟ می‌تونی چند مورد انتخاب کنی.",
-        reply_markup=ReplyKeyboardRemove(),
-    )
-    await message.answer("انتخاب‌هایت را بزن و بعد ثبت انتخاب‌ها را بزن:", reply_markup=multi_select_keyboard(ACTIVITIES, [], ACTIVITIES_DONE))
-
-
-@router.message(Registration.phone)
-async def phone_invalid(message: Message) -> None:
-    await message.answer("لطفاً با دکمه‌ی «اشتراک‌گذاری شماره خودم» شماره‌ات را ارسال کن.")
-
-
-async def show_multi(callback: CallbackQuery, state: FSMContext, items: list[str], key: str, done_label: str, next_state, prompt: str) -> None:
-    data = await state.get_data()
-    selected = data.get(key, [])
-    _, action = (callback.data or "").split(":", 1)
-    if action == "done":
-        if not selected:
-            await callback.answer("حداقل یک مورد را انتخاب کن.", show_alert=True)
-            return
-        await state.set_state(next_state)
-        completed_event = "activities_selected" if key == "activities" else "availability_selected"
-        await track_funnel_event(callback.from_user.id, completed_event)
-        await callback.message.edit_reply_markup(reply_markup=None)
-        await callback.message.answer(
-            prompt,
-            reply_markup=reply_keyboard(
-                AGE_PREFERENCES if next_state == Registration.age_preference else JOIN_REASONS,
-                1,
-            ),
-        )
-        await callback.answer()
-        return
-    item = items[int(action)]
-    selected = [value for value in selected if value != item] if item in selected else [*selected, item]
-    await state.update_data(**{key: selected})
-    await callback.message.edit_reply_markup(reply_markup=multi_select_keyboard(items, selected, done_label))
-    await callback.answer()
-
-
-@router.callback_query(Registration.activities, F.data.startswith("multi:"))
-async def activity_selection(callback: CallbackQuery, state: FSMContext) -> None:
-    await show_multi(callback, state, ACTIVITIES, "activities", ACTIVITIES_DONE, Registration.age_preference, "اختلاف سنی افراد جمع چقدر برات مهمه؟")
-
-
-@router.message(Registration.age_preference, F.text.in_(AGE_PREFERENCES))
-async def age_preference(message: Message, state: FSMContext) -> None:
-    await state.update_data(age_preference=message.text, availability=[])
-    await track_funnel_event(message.from_user.id, "age_preference_selected")
-    await state.set_state(Registration.availability)
-    await message.answer("چه زمان‌هایی برای دورهمی آزادی؟ هر تعداد که می‌تونی انتخاب کن.", reply_markup=ReplyKeyboardRemove())
-    await message.answer("انتخاب‌هایت را بزن و بعد ثبت زمان‌ها را بزن:", reply_markup=multi_select_keyboard(AVAILABILITY, [], AVAILABILITY_DONE))
-
-
-@router.message(Registration.age_preference)
-async def age_preference_invalid(message: Message) -> None:
-    await message.answer("لطفاً یکی از گزینه‌ها را انتخاب کن.")
-
-
-@router.callback_query(Registration.availability, F.data.startswith("multi:"))
-async def availability_selection(callback: CallbackQuery, state: FSMContext) -> None:
-    await show_multi(callback, state, AVAILABILITY, "availability", AVAILABILITY_DONE, Registration.join_reason, "بیشتر برای چی دوست داری تو این دورهمی‌ها شرکت کنی؟")
-
-
 @router.message(Registration.join_reason, F.text.in_(JOIN_REASONS))
 async def join_reason(message: Message, state: FSMContext) -> None:
     await state.update_data(join_reason=message.text)
-    await track_funnel_event(message.from_user.id, "reason_selected")
+    await track_funnel_event(message.from_user.id, "join_reason_selected")
     await state.set_state(Registration.review)
     data = await state.get_data()
     await message.answer(format_registration(data), reply_markup=reply_keyboard([FINAL_SUBMIT, RESTART], 1))
@@ -235,9 +140,19 @@ async def submit(message: Message, state: FSMContext) -> None:
     await save_registration(message.from_user.id, message.from_user.username, data)
     await track_funnel_event(message.from_user.id, "registration_completed")
     await state.clear()
+    referral_link = ""
+    try:
+        bot_username = (await message.bot.get_me()).username
+        if bot_username:
+            referral_link = f"\nhttps://t.me/{bot_username}"
+    except TelegramAPIError:
+        pass
     await message.answer(
-        "✅ ثبت‌نامت انجام شد.\n\nوقتی یک گروه دورهمی مناسب شکل بگیره، باهات تماس می‌گیریم. "
-        "جزئیات نهایی فقط بعد از تأیید حضورت ارسال می‌شه.",
+        "ثبت‌نامت انجام شد ✅\n\n"
+        "ثبت‌نام فقط یعنی به این دورهمی علاقه‌مندی و به معنی حضور قطعی نیست.\n\n"
+        "اگر برای این دورهمی انتخاب بشی، قبلش از طریق همین بات باهات هماهنگ می‌کنیم.\n\n"
+        "اگه کسی رو می‌شناسی که فکر می‌کنی پایهٔ چنین دورهمی‌ایه، لینک جمع‌مون رو براش بفرست 👇"
+        f"{referral_link}",
         reply_markup=ReplyKeyboardRemove(),
     )
 
@@ -253,12 +168,17 @@ async def review_invalid(message: Message) -> None:
 
 
 def format_registration(data: dict, include_status: bool = False) -> str:
-    status = f"\nوضعیت: {data['status']}" if include_status else ""
-    return (
-        "📝 مرور ثبت‌نام\n\n"
-        f"اسم: {data['first_name']}\nسن: {data['age']}\nجنسیت: {data['gender']}\n"
-        f"محدوده: {data['area']}\nفعالیت‌ها: {', '.join(data['activities'])}\n"
-        f"ترجیح اختلاف سنی: {data['age_preference']}\n"
-        f"زمان‌های آزاد: {', '.join(data['availability'])}\n"
-        f"دلیل شرکت: {data['join_reason']}{status}"
-    )
+    fields = [
+        ("اسم", data.get("first_name")),
+        ("سن", data.get("age")),
+        ("جنسیت", data.get("gender")),
+        ("محدوده", data.get("area")),
+        ("فعالیت‌ها", ", ".join(data.get("activities") or [])),
+        ("ترجیح اختلاف سنی", data.get("age_preference")),
+        ("زمان‌های آزاد", ", ".join(data.get("availability") or [])),
+        ("دلیل شرکت", data.get("join_reason")),
+    ]
+    lines = [f"{label}: {value}" for label, value in fields if value]
+    if include_status and data.get("status"):
+        lines.append(f"وضعیت: {data['status']}")
+    return "📝 مرور ثبت‌نام\n\n" + "\n".join(lines)

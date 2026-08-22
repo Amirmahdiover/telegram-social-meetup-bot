@@ -36,7 +36,7 @@ Copy-Item .env.example .env
 python bot.py
 ```
 
-The first start creates `meetup_bot.sqlite3` automatically. Keep that file private: it contains phone numbers collected only for meetup coordination and attendance confirmation.
+The first start creates `meetup_bot.sqlite3` automatically. Keep that file private: it contains registrations and funnel analytics. Older databases may still contain phone numbers from the previous flow.
 
 ## Resetting the Local Database
 
@@ -64,8 +64,14 @@ The script checks whether the database is in use and tells you to stop the bot f
 
 - `/start` — start or restart registration
 - `/cancel` — cancel an in-progress registration
-- `/me` — view your saved registration (phone number is intentionally not shown)
+- `/me` — view your saved registration
 - `/registrations` — admins only; downloads all registrations as an Excel-friendly UTF-8 CSV
+
+## V0 registration flow
+
+`/start` → 18+ confirmation → first name → age → gender → join reason → review → completed.
+
+The current event format is café + conversation + UNO. Registration records interest only; selected people receive a Telegram message for final coordination.
 
 ## V0 workflow
 
