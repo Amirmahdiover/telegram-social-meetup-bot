@@ -22,6 +22,9 @@ async def init_db() -> None:
                 activities TEXT,
                 age_preference TEXT,
                 availability TEXT,
+                social_warmup_style TEXT,
+                meetup_style TEXT,
+                conversation_initiative TEXT,
                 join_reason TEXT NOT NULL,
                 status TEXT NOT NULL DEFAULT 'new',
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -29,6 +32,7 @@ async def init_db() -> None:
             )
         """)
         await _make_legacy_registration_fields_nullable(db)
+        await _add_registration_columns(db)
         await db.execute("""
             CREATE TABLE IF NOT EXISTS funnel_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -95,6 +99,9 @@ async def _make_legacy_registration_fields_nullable(db: aiosqlite.Connection) ->
             activities TEXT,
             age_preference TEXT,
             availability TEXT,
+            social_warmup_style TEXT,
+            meetup_style TEXT,
+            conversation_initiative TEXT,
             join_reason TEXT NOT NULL,
             status TEXT NOT NULL DEFAULT 'new',
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -102,14 +109,27 @@ async def _make_legacy_registration_fields_nullable(db: aiosqlite.Connection) ->
         )
     """)
     await db.execute("""
-        INSERT INTO registrations_new
+        INSERT INTO registrations_new (
+            telegram_user_id, telegram_username, first_name, age, gender, area, phone,
+            activities, age_preference, availability, social_warmup_style, meetup_style,
+            conversation_initiative, join_reason, status, created_at, updated_at
+        )
         SELECT telegram_user_id, telegram_username, first_name, age, gender, area, phone,
-               activities, age_preference, availability, join_reason, status, created_at, updated_at
+               activities, age_preference, availability, NULL, NULL, NULL,
+               join_reason, status, created_at, updated_at
         FROM registrations
     """)
     await db.execute("DROP TABLE registrations")
     await db.execute("ALTER TABLE registrations_new RENAME TO registrations")
     await db.execute("PRAGMA foreign_keys = ON")
+
+
+async def _add_registration_columns(db: aiosqlite.Connection) -> None:
+    cursor = await db.execute("PRAGMA table_info(registrations)")
+    existing_columns = {row[1] for row in await cursor.fetchall()}
+    for column in ("social_warmup_style", "meetup_style", "conversation_initiative"):
+        if column not in existing_columns:
+            await db.execute(f"ALTER TABLE registrations ADD COLUMN {column} TEXT")
 
 
 async def track_funnel_event(telegram_user_id: int, event_name: str) -> None:
@@ -152,22 +172,29 @@ async def save_registration(user_id: int, username: str | None, data: dict[str, 
         "activities": None,
         "age_preference": None,
         "availability": None,
+        "social_warmup_style": data["social_warmup_style"],
+        "meetup_style": data["meetup_style"],
+        "conversation_initiative": data["conversation_initiative"],
         "join_reason": data["join_reason"],
     }
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
             INSERT INTO registrations (
                 telegram_user_id, telegram_username, first_name, age, gender, area, phone,
-                activities, age_preference, availability, join_reason
+                activities, age_preference, availability, social_warmup_style, meetup_style,
+                conversation_initiative, join_reason
             ) VALUES (
                 :telegram_user_id, :telegram_username, :first_name, :age, :gender, :area, :phone,
-                :activities, :age_preference, :availability, :join_reason
+                :activities, :age_preference, :availability, :social_warmup_style, :meetup_style,
+                :conversation_initiative, :join_reason
             )
             ON CONFLICT(telegram_user_id) DO UPDATE SET
                 telegram_username=excluded.telegram_username,
                 first_name=excluded.first_name, age=excluded.age, gender=excluded.gender,
                 area=excluded.area, phone=excluded.phone, activities=excluded.activities,
                 age_preference=excluded.age_preference, availability=excluded.availability,
+                social_warmup_style=excluded.social_warmup_style, meetup_style=excluded.meetup_style,
+                conversation_initiative=excluded.conversation_initiative,
                 join_reason=excluded.join_reason, status='new', updated_at=CURRENT_TIMESTAMP
         """, values)
         await db.commit()

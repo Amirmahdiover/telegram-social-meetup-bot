@@ -5,7 +5,11 @@ from aiogram.exceptions import TelegramAPIError
 from aiogram.types import Message, ReplyKeyboardRemove
 
 from database import get_registration, save_registration, track_funnel_event
-from keyboards import FINAL_SUBMIT, JOIN_REASONS, NO, RESTART, START_REGISTRATION, YES, reply_keyboard
+from keyboards import (
+    CONVERSATION_INITIATIVE_OPTIONS, FINAL_SUBMIT, JOIN_REASONS, MEETUP_STYLE_OPTIONS,
+    NO, RESTART, SOCIAL_VALUE_LABELS, SOCIAL_WARMUP_OPTIONS, START_REGISTRATION, YES,
+    reply_keyboard,
+)
 from states import Registration
 
 router = Router()
@@ -103,8 +107,47 @@ async def age(message: Message, state: FSMContext) -> None:
         return
     await state.update_data(age=value)
     await track_funnel_event(message.from_user.id, "age_entered")
+    await state.set_state(Registration.social_warmup_style)
+    await message.answer("وقتی وارد یه جمع جدید می‌شی معمولاً کدومی؟", reply_markup=reply_keyboard(list(SOCIAL_WARMUP_OPTIONS), 1))
+
+
+@router.message(Registration.social_warmup_style, F.text.in_(SOCIAL_WARMUP_OPTIONS))
+async def social_warmup_style(message: Message, state: FSMContext) -> None:
+    await state.update_data(social_warmup_style=SOCIAL_WARMUP_OPTIONS[message.text])
+    await track_funnel_event(message.from_user.id, "social_warmup_selected")
+    await state.set_state(Registration.meetup_style)
+    await message.answer("توی دورهمی بیشتر کدوم مدل رو دوست داری؟", reply_markup=reply_keyboard(list(MEETUP_STYLE_OPTIONS), 1))
+
+
+@router.message(Registration.social_warmup_style)
+async def social_warmup_style_invalid(message: Message) -> None:
+    await message.answer("لطفاً یکی از گزینه‌ها را انتخاب کن.")
+
+
+@router.message(Registration.meetup_style, F.text.in_(MEETUP_STYLE_OPTIONS))
+async def meetup_style(message: Message, state: FSMContext) -> None:
+    await state.update_data(meetup_style=MEETUP_STYLE_OPTIONS[message.text])
+    await track_funnel_event(message.from_user.id, "meetup_style_selected")
+    await state.set_state(Registration.conversation_initiative)
+    await message.answer("معمولاً تو جمع چقدر اهل شروع کردن گفتگو هستی؟", reply_markup=reply_keyboard(list(CONVERSATION_INITIATIVE_OPTIONS), 3))
+
+
+@router.message(Registration.meetup_style)
+async def meetup_style_invalid(message: Message) -> None:
+    await message.answer("لطفاً یکی از گزینه‌ها را انتخاب کن.")
+
+
+@router.message(Registration.conversation_initiative, F.text.in_(CONVERSATION_INITIATIVE_OPTIONS))
+async def conversation_initiative(message: Message, state: FSMContext) -> None:
+    await state.update_data(conversation_initiative=CONVERSATION_INITIATIVE_OPTIONS[message.text])
+    await track_funnel_event(message.from_user.id, "conversation_initiative_selected")
     await state.set_state(Registration.join_reason)
     await message.answer("بیشتر برای چی دوست داری تو این دورهمی شرکت کنی؟", reply_markup=reply_keyboard(JOIN_REASONS, 1))
+
+
+@router.message(Registration.conversation_initiative)
+async def conversation_initiative_invalid(message: Message) -> None:
+    await message.answer("لطفاً یکی از گزینه‌ها را انتخاب کن.")
 
 
 @router.message(Registration.join_reason, F.text.in_(JOIN_REASONS))
@@ -168,6 +211,9 @@ def format_registration(data: dict, include_status: bool = False) -> str:
         ("فعالیت‌ها", ", ".join(data.get("activities") or [])),
         ("ترجیح اختلاف سنی", data.get("age_preference")),
         ("زمان‌های آزاد", ", ".join(data.get("availability") or [])),
+        ("راحتی در جمع جدید", SOCIAL_VALUE_LABELS.get(data.get("social_warmup_style"))),
+        ("مدل دورهمی", SOCIAL_VALUE_LABELS.get(data.get("meetup_style"))),
+        ("شروع گفتگو", SOCIAL_VALUE_LABELS.get(data.get("conversation_initiative"))),
         ("دلیل شرکت", data.get("join_reason")),
     ]
     lines = [f"{label}: {value}" for label, value in fields if value]

@@ -69,9 +69,11 @@ The script checks whether the database is in use and tells you to stop the bot f
 
 ## V0 registration flow
 
-`/start` → 18+ confirmation → first name → age → join reason → review → completed.
+`/start` → 18+ confirmation → first name → age → comfort in new groups → preferred meetup style → conversation initiative → join reason → review → completed.
 
-The current event is on Thursday, 18:00–20:00, at Cafe Diamond near Fallahpour Street in Tehran District 6. Registration collects only name, age, and join reason—never gender or phone. It records interest only: selected people are notified on Tuesday through Telegram, and receive the exact location pin later through the bot.
+The current event is on Thursday, 18:00–20:00, at Cafe Diamond near Fallahpour Street in Tehran District 6. Registration collects name, age, join reason, and three short social-style answers: comfort in new groups, preferred meetup style, and conversation initiative. It does not collect gender or phone. The answers help the admin manually balance groups; the bot does not score or automatically match people.
+
+Funnel reporting counts distinct Telegram users at each stage. Individual event rows are retained for historical analysis, with accidental repeats of the same event for a user ignored for five minutes.
 
 ## V0 workflow
 

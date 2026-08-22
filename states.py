@@ -5,6 +5,9 @@ class Registration(StatesGroup):
     age_confirmation = State()
     first_name = State()
     age = State()
+    social_warmup_style = State()
+    meetup_style = State()
+    conversation_initiative = State()
     join_reason = State()
     review = State()
 

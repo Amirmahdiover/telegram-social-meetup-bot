@@ -24,6 +24,22 @@ JOIN_REASONS = [
     "🎉 تفریح و تجربه جدید", "🎯 پیدا کردن همراه برای فعالیت‌های مشترک",
     "ترکیبی از این‌ها",
 ]
+SOCIAL_WARMUP_OPTIONS = {
+    "زود گرم می‌گیرم": "quick_warmup",
+    "یکم زمان می‌خوام": "needs_time",
+    "بیشتر شنونده‌ام": "listener",
+}
+MEETUP_STYLE_OPTIONS = {
+    "بیشتر گپ و آشنایی": "conversation",
+    "بیشتر بازی": "games",
+    "ترکیبی از هر دو": "balanced",
+}
+CONVERSATION_INITIATIVE_OPTIONS = {"زیاد": "high", "متوسط": "medium", "کم": "low"}
+SOCIAL_VALUE_LABELS = {
+    **{value: label for label, value in SOCIAL_WARMUP_OPTIONS.items()},
+    **{value: label for label, value in MEETUP_STYLE_OPTIONS.items()},
+    **{value: label for label, value in CONVERSATION_INITIATIVE_OPTIONS.items()},
+}
 
 
 def reply_keyboard(options: list[str], columns: int = 2, *, resize: bool = True) -> ReplyKeyboardMarkup:

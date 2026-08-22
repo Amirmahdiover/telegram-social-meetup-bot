@@ -10,7 +10,7 @@ from aiogram.types import BufferedInputFile, CallbackQuery, Message
 
 from config import Settings
 from database import add_event_member, create_event, get_all_registrations, get_event, get_event_members, get_funnel_counts, get_invited_members, update_event_member_status
-from keyboards import event_invitation_keyboard, event_send_confirmation_keyboard
+from keyboards import SOCIAL_VALUE_LABELS, event_invitation_keyboard, event_send_confirmation_keyboard
 from states import EventCreation
 
 
@@ -29,11 +29,11 @@ def create_admin_router(settings: Settings) -> Router:
             return
         rows = await get_all_registrations()
         output = io.StringIO(newline="")
-        columns = ["telegram_user_id", "username", "name", "age", "gender", "area", "phone", "activities", "age_preference", "availability", "join_reason", "status", "created_at"]
+        columns = ["telegram_user_id", "username", "name", "age", "gender", "area", "phone", "activities", "age_preference", "availability", "social_warmup_style", "meetup_style", "conversation_initiative", "join_reason", "status", "created_at"]
         writer = csv.DictWriter(output, fieldnames=columns)
         writer.writeheader()
         for row in rows:
-            writer.writerow({"telegram_user_id": row["telegram_user_id"], "username": row["telegram_username"], "name": row["first_name"], "age": row["age"], "gender": row["gender"], "area": row["area"], "phone": row["phone"], "activities": " | ".join(json.loads(row["activities"] or "[]")), "age_preference": row["age_preference"], "availability": " | ".join(json.loads(row["availability"] or "[]")), "join_reason": row["join_reason"], "status": row["status"], "created_at": row["created_at"]})
+            writer.writerow({"telegram_user_id": row["telegram_user_id"], "username": row["telegram_username"], "name": row["first_name"], "age": row["age"], "gender": row["gender"], "area": row["area"], "phone": row["phone"], "activities": " | ".join(json.loads(row["activities"] or "[]")), "age_preference": row["age_preference"], "availability": " | ".join(json.loads(row["availability"] or "[]")), "social_warmup_style": SOCIAL_VALUE_LABELS.get(row["social_warmup_style"], ""), "meetup_style": SOCIAL_VALUE_LABELS.get(row["meetup_style"], ""), "conversation_initiative": SOCIAL_VALUE_LABELS.get(row["conversation_initiative"], ""), "join_reason": row["join_reason"], "status": row["status"], "created_at": row["created_at"]})
         content = ("\ufeff" + output.getvalue()).encode("utf-8")
         await message.answer_document(BufferedInputFile(content, filename="registrations.csv"), caption=f"{len(rows)} ثبت‌نام")
 
@@ -61,12 +61,49 @@ def create_admin_router(settings: Settings) -> Router:
         counts = await get_funnel_counts()
         count = lambda name: counts.get(name, 0)
         started, completed = count("registration_started"), count("registration_completed")
-        report = (
+        legacy_report = (
             "📊 قیف ثبت‌نام\n\n"
             f"شروع ثبت‌نام: {started}\nتأیید ۱۸+: {count('age_confirmed')}\nثبت نام: {count('name_entered')}\nثبت سن: {count('age_entered')}\nانتخاب هدف: {count('join_reason_selected')}\nثبت‌نام کامل: {completed}\n\n"
             f"✅ نرخ تکمیل کل ثبت‌نام:\n{(completed / started * 100 if started else 0):.1f}%"
         )
+        report = (
+            "📊 قیف ثبت‌نام\n\n"
+            f"شروع ثبت‌نام: {started}\n"
+            f"تأیید ۱۸+: {count('age_confirmed')}\n"
+            f"ثبت نام: {count('name_entered')}\n"
+            f"ثبت سن: {count('age_entered')}\n"
+            f"راحتی در جمع جدید: {count('social_warmup_selected')}\n"
+            f"مدل دورهمی: {count('meetup_style_selected')}\n"
+            f"شروع گفتگو: {count('conversation_initiative_selected')}\n"
+            f"انتخاب هدف: {count('join_reason_selected')}\n"
+            f"ثبت‌نام کامل: {completed}\n\n"
+            f"✅ نرخ تکمیل کل ثبت‌نام:\n{(completed / started * 100 if started else 0):.1f}%"
+        )
         await message.answer(report)
+
+    @router.message(Command("user_profile"))
+    async def user_profile(message: Message) -> None:
+        if not await require_admin(message):
+            return
+        parts = (message.text or "").split()
+        if len(parts) != 2:
+            await message.answer("استفاده: /user_profile <user_number>")
+            return
+        try:
+            user_number = int(parts[1])
+        except ValueError:
+            await message.answer("شماره کاربر باید عدد باشد.")
+            return
+        rows = await get_all_registrations()
+        if not 1 <= user_number <= len(rows):
+            await message.answer("شماره کاربر نامعتبر است. ابتدا /users را اجرا کن.")
+            return
+        user = rows[user_number - 1]
+        lines = [f"نام: {user['first_name']}", f"سن: {user['age']}", f"دلیل شرکت: {user['join_reason']}", f"وضعیت: {user['status']}"]
+        for label, field in (("راحتی در جمع جدید", "social_warmup_style"), ("مدل دورهمی", "meetup_style"), ("شروع گفتگو", "conversation_initiative")):
+            if user.get(field):
+                lines.append(f"{label}: {SOCIAL_VALUE_LABELS.get(user[field], user[field])}")
+        await message.answer("\n".join(lines))
 
     @router.message(Command("create_event"))
     async def create_event_command(message: Message, state: FSMContext) -> None:
