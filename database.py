@@ -16,7 +16,7 @@ async def init_db() -> None:
                 telegram_username TEXT,
                 first_name TEXT NOT NULL,
                 age INTEGER NOT NULL,
-                gender TEXT NOT NULL,
+                gender TEXT,
                 area TEXT,
                 phone TEXT,
                 activities TEXT,
@@ -78,7 +78,7 @@ async def _make_legacy_registration_fields_nullable(db: aiosqlite.Connection) ->
     """Relax V0-only fields without losing existing registrations or funnel data."""
     cursor = await db.execute("PRAGMA table_info(registrations)")
     columns = {row[1]: row[3] for row in await cursor.fetchall()}
-    legacy_fields = {"area", "phone", "activities", "age_preference", "availability"}
+    legacy_fields = {"gender", "area", "phone", "activities", "age_preference", "availability"}
     if not any(columns.get(field) for field in legacy_fields):
         return
 
@@ -89,7 +89,7 @@ async def _make_legacy_registration_fields_nullable(db: aiosqlite.Connection) ->
             telegram_username TEXT,
             first_name TEXT NOT NULL,
             age INTEGER NOT NULL,
-            gender TEXT NOT NULL,
+            gender TEXT,
             area TEXT,
             phone TEXT,
             activities TEXT,
@@ -146,7 +146,7 @@ async def save_registration(user_id: int, username: str | None, data: dict[str, 
         "telegram_username": username or "",
         "first_name": data["first_name"],
         "age": data["age"],
-        "gender": data["gender"],
+        "gender": None,
         "area": None,
         "phone": None,
         "activities": None,

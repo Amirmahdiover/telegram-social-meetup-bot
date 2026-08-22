@@ -63,7 +63,7 @@ def create_admin_router(settings: Settings) -> Router:
         started, completed = count("registration_started"), count("registration_completed")
         report = (
             "📊 قیف ثبت‌نام\n\n"
-            f"شروع ثبت‌نام: {started}\nتأیید ۱۸+: {count('age_confirmed')}\nثبت نام: {count('name_entered')}\nثبت سن: {count('age_entered')}\nانتخاب جنسیت: {count('gender_selected')}\nانتخاب هدف: {count('join_reason_selected')}\nثبت‌نام کامل: {completed}\n\n"
+            f"شروع ثبت‌نام: {started}\nتأیید ۱۸+: {count('age_confirmed')}\nثبت نام: {count('name_entered')}\nثبت سن: {count('age_entered')}\nانتخاب هدف: {count('join_reason_selected')}\nثبت‌نام کامل: {completed}\n\n"
             f"✅ نرخ تکمیل کل ثبت‌نام:\n{(completed / started * 100 if started else 0):.1f}%"
         )
         await message.answer(report)

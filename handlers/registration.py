@@ -5,7 +5,7 @@ from aiogram.exceptions import TelegramAPIError
 from aiogram.types import Message, ReplyKeyboardRemove
 
 from database import get_registration, save_registration, track_funnel_event
-from keyboards import FINAL_SUBMIT, GENDERS, JOIN_REASONS, NO, RESTART, START_REGISTRATION, YES, reply_keyboard
+from keyboards import FINAL_SUBMIT, JOIN_REASONS, NO, RESTART, START_REGISTRATION, YES, reply_keyboard
 from states import Registration
 
 router = Router()
@@ -103,21 +103,8 @@ async def age(message: Message, state: FSMContext) -> None:
         return
     await state.update_data(age=value)
     await track_funnel_event(message.from_user.id, "age_entered")
-    await state.set_state(Registration.gender)
-    await message.answer("جنسیتت رو انتخاب کن:", reply_markup=reply_keyboard(GENDERS))
-
-
-@router.message(Registration.gender, F.text.in_(GENDERS))
-async def gender(message: Message, state: FSMContext) -> None:
-    await state.update_data(gender=message.text)
-    await track_funnel_event(message.from_user.id, "gender_selected")
     await state.set_state(Registration.join_reason)
     await message.answer("بیشتر برای چی دوست داری تو این دورهمی شرکت کنی؟", reply_markup=reply_keyboard(JOIN_REASONS, 1))
-
-
-@router.message(Registration.gender)
-async def gender_invalid(message: Message) -> None:
-    await message.answer("لطفاً یکی از گزینه‌های جنسیت را انتخاب کن.")
 
 
 @router.message(Registration.join_reason, F.text.in_(JOIN_REASONS))
@@ -149,9 +136,14 @@ async def submit(message: Message, state: FSMContext) -> None:
         pass
     await message.answer(
         "ثبت‌نامت انجام شد ✅\n\n"
-        "ثبت‌نام فقط یعنی به این دورهمی علاقه‌مندی و به معنی حضور قطعی نیست.\n\n"
-        "اگر برای این دورهمی انتخاب بشی، قبلش از طریق همین بات باهات هماهنگ می‌کنیم.\n\n"
-        "اگه کسی رو می‌شناسی که فکر می‌کنی پایهٔ چنین دورهمی‌ایه، لینک جمع‌مون رو براش بفرست 👇"
+        "این ثبت‌نام فقط یعنی برای شرکت در دورهمی علاقه‌مندی و به معنی حضور قطعی نیست.\n\n"
+        "نتیجه انتخاب افراد سه‌شنبه از طریق همین بات اعلام میشه.\n\n"
+        "📅 دورهمی: پنجشنبه\n"
+        "⏰ ساعت: ۱۸ تا ۲۰\n"
+        "📍 کافه دایموند\n"
+        "محدوده: منطقه ۶ تهران، خیابان فلاح‌پور\n\n"
+        "اگر انتخاب بشی، قبل از دورهمی پیام تأیید و لوکیشن دقیق برات از طریق همین بات ارسال میشه.\n\n"
+        "اگه کسی رو می‌شناسی که فکر می‌کنی پایه چنین دورهمی‌ایه، لینک جمعینو رو براش بفرست 👇"
         f"{referral_link}",
         reply_markup=ReplyKeyboardRemove(),
     )

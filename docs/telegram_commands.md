@@ -31,7 +31,7 @@
 - **Access level:** User
 - **Description:** Shows the caller's saved registration profile.
 - **Required arguments:** None.
-- **Expected output:** Name, age, gender, join reason, and registration status. Older saved registrations also show any previously collected non-empty fields. Unregistered users are directed to `/start`.
+- **Expected output:** Name, age, join reason, and registration status. Older saved registrations also show any previously collected non-empty fields. Gender and phone are not collected in the current flow. Unregistered users are directed to `/start`.
 
 ### `/whoami`
 
@@ -67,7 +67,7 @@ All commands in this section require the caller's numeric Telegram ID to be pres
 - **Access level:** Admin only
 - **Description:** Shows registration funnel analytics.
 - **Required arguments:** None.
-- **Expected output:** Unique-user counts for the streamlined registration stages and the overall completion rate. Historical funnel events remain stored but are not part of this report.
+- **Expected output:** Unique-user counts for age confirmation, name, age, join reason, and completion, plus the overall completion rate. Historical funnel events remain stored but are not part of this report.
 
 ### `/create_event`
 
@@ -172,3 +172,4 @@ None.
 - `/event_members` and `/event_users` are currently equivalent roster commands.
 - Invitations include a Telegram support link (`https://t.me/amirmahq`).
 - Because no `BotCommand` list is registered, Telegram clients may not automatically show these commands in the command menu.
+- The current Thursday meetup is 18:00–20:00 at Cafe Diamond near Fallahpour Street, Tehran District 6. Selected users are notified on Tuesday and receive the exact Telegram location later.

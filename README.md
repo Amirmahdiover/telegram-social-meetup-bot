@@ -69,9 +69,9 @@ The script checks whether the database is in use and tells you to stop the bot f
 
 ## V0 registration flow
 
-`/start` → 18+ confirmation → first name → age → gender → join reason → review → completed.
+`/start` → 18+ confirmation → first name → age → join reason → review → completed.
 
-The current event format is café + conversation + UNO. Registration records interest only; selected people receive a Telegram message for final coordination.
+The current event is on Thursday, 18:00–20:00, at Cafe Diamond near Fallahpour Street in Tehran District 6. Registration collects only name, age, and join reason—never gender or phone. It records interest only: selected people are notified on Tuesday through Telegram, and receive the exact location pin later through the bot.
 
 ## V0 workflow
 
